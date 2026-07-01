@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fredoka", sans-serif;
+}
+
+/* Custom Styles & Children Animations */
+@layer utilities {
+  .animate-bubble-slow-1 {
+    animation: float-bubble 15s ease-in-out infinite alternate;
+  }
+  .animate-bubble-slow-2 {
+    animation: float-bubble 18s ease-in-out infinite alternate-reverse;
+  }
+  .animate-bubble-slow-3 {
+    animation: float-bubble 22s ease-in-out infinite alternate;
+  }
+  .animate-bubble-slow-4 {
+    animation: float-bubble 25s ease-in-out infinite alternate-reverse;
+  }
+}
+
+@keyframes float-bubble {
+  0% {
+    transform: translateY(0) scale(1) translateX(0);
+  }
+  50% {
+    transform: translateY(-40px) scale(1.1) translateX(15px);
+  }
+  100% {
+    transform: translateY(-80px) scale(0.9) translateX(-15px);
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

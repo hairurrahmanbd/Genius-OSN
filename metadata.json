@@ -1,0 +1,6 @@
+{
+  "name": "Genius OSN",
+  "description": "Aplikasi bimbingan dan latihan soal OSN IPA SD Kelas 6 berdasarkan Silabus Resmi BPTI Kemendikdasmen dengan asisten belajar Tutor AI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
