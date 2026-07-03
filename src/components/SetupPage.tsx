@@ -24,14 +24,17 @@ import {
   AlertCircle,
   Sliders,
   Globe,
-  Plus
+  Plus,
+  Home
 } from "lucide-react";
 
 interface SetupPageProps {
   onStartQuiz: (config: QuizConfig, apiKeys: string[]) => void;
+  onBackToMainMenu?: () => void;
+  apiKeys: string[];
 }
 
-export default function SetupPage({ onStartQuiz }: SetupPageProps) {
+export default function SetupPage({ onStartQuiz, onBackToMainMenu, apiKeys }: SetupPageProps) {
   // Active subject tab: IPA, IPS, Matematika
   const [activeSubject, setActiveSubject] = useState<SubjectType>("IPA");
 
@@ -41,28 +44,8 @@ export default function SetupPage({ onStartQuiz }: SetupPageProps) {
   const [difficulty, setDifficulty] = useState<string>("Sedang");
   const [approach, setApproach] = useState<string>("Campuran Semua Pendekatan");
 
-  // API Key state: 3 Columns of Gemini keys per subject
-  const [key1, setKey1] = useState<string>(() => localStorage.getItem("genius_osn_key_1") || "");
-  const [key2, setKey2] = useState<string>(() => localStorage.getItem("genius_osn_key_2") || "");
-  const [key3, setKey3] = useState<string>(() => localStorage.getItem("genius_osn_key_3") || "");
-  
-  const [showKeyConfig, setShowKeyConfig] = useState<boolean>(false);
-
   // Filter category state (defaults to the first category of IPA)
   const [activeCategory, setActiveCategory] = useState<string>("Biologi & Ekologi");
-
-  // Sync API Keys with local storage
-  useEffect(() => {
-    localStorage.setItem("genius_osn_key_1", key1);
-  }, [key1]);
-
-  useEffect(() => {
-    localStorage.setItem("genius_osn_key_2", key2);
-  }, [key2]);
-
-  useEffect(() => {
-    localStorage.setItem("genius_osn_key_3", key3);
-  }, [key3]);
 
   // Reset selected topics and active category when switching subjects
   useEffect(() => {
@@ -124,6 +107,13 @@ export default function SetupPage({ onStartQuiz }: SetupPageProps) {
     e.preventDefault();
     if (selectedTopics.length === 0) return;
     
+    const activeKeys = apiKeys.filter(k => k.trim() !== "");
+    if (activeKeys.length === 0) {
+      alert("Harap isi minimal satu API Key Gemini terlebih dahulu di halaman utama (Menu Utama)!");
+      if (onBackToMainMenu) onBackToMainMenu();
+      return;
+    }
+    
     // Pass the config and the array of 3 API keys
     onStartQuiz({
       subject: activeSubject,
@@ -131,7 +121,7 @@ export default function SetupPage({ onStartQuiz }: SetupPageProps) {
       count: questionCount,
       difficulty,
       approach
-    }, [key1, key2, key3].filter(k => k.trim() !== ""));
+    }, activeKeys);
   };
 
   // Icon mapping for subjects
@@ -144,7 +134,18 @@ export default function SetupPage({ onStartQuiz }: SetupPageProps) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-4xl mx-auto px-4 py-8 relative">
+      {onBackToMainMenu && (
+        <button
+          type="button"
+          onClick={onBackToMainMenu}
+          className="absolute top-4 right-4 bg-white/95 hover:bg-slate-50 text-indigo-700 p-2 sm:p-2.5 rounded-full border border-indigo-100 shadow-md cursor-pointer transition-all active:scale-95 z-50 flex items-center justify-center"
+          title="Kembali ke Menu Utama"
+        >
+          <Home className="w-5 h-5" />
+        </button>
+      )}
+
       {/* Background Floaters */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-40">
         <div className="absolute top-20 left-10 w-24 h-24 rounded-full bg-blue-200 animate-bubble-slow-1 filter blur-sm"></div>
@@ -153,25 +154,26 @@ export default function SetupPage({ onStartQuiz }: SetupPageProps) {
         <div className="absolute bottom-10 right-10 w-28 h-28 rounded-full bg-purple-200 animate-bubble-slow-4 filter blur-sm"></div>
       </div>
 
-      <div className="relative z-10 space-y-8 animate-fade-in">
+      <div className="relative z-10 space-y-6 animate-fade-in">
+        
         {/* Header Branding */}
-        <div className="text-center space-y-3">
-          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 via-emerald-500 to-yellow-500 p-1.5 rounded-full shadow-lg animate-bounce duration-1000">
-            <div className="bg-white p-3 rounded-full">
-              <Atom className="w-10 h-10 text-indigo-600 animate-spin" style={{ animationDuration: '8s' }} />
+        <div className="text-center space-y-2 pt-2">
+          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 p-1.5 rounded-full shadow-md">
+            <div className="bg-white p-2 rounded-full">
+              <Award className="w-6 h-6 text-amber-500 animate-pulse" />
             </div>
           </div>
           
-          <h1 className="text-5xl md:text-6xl font-display font-extrabold tracking-tight text-indigo-900 drop-shadow-sm">
+          <h1 className="text-2xl sm:text-3xl font-display font-extrabold tracking-tight text-indigo-900 drop-shadow-sm">
             Genius <span className="text-emerald-500">OSN</span>
           </h1>
-          <p className="text-lg md:text-xl font-medium text-slate-600 max-w-xl mx-auto leading-relaxed">
+          <p className="text-xs sm:text-sm font-medium text-slate-500 max-w-md mx-auto leading-relaxed">
             Asah Penalaran Soal Olimpiade Sains Nasional (OSN)
           </p>
 
-          <div className="flex flex-wrap justify-center items-center gap-y-2 gap-x-4 text-xs font-semibold text-indigo-700 bg-white shadow-sm border border-indigo-100 py-2 px-5 rounded-full max-w-fit mx-auto mt-4">
+          <div className="flex flex-wrap justify-center items-center gap-y-1 gap-x-3 text-[10px] sm:text-xs font-semibold text-indigo-700 bg-white shadow-sm border border-indigo-100 py-1.5 px-4 rounded-full max-w-fit mx-auto mt-2">
             <span className="flex items-center gap-1">
-              <GraduationCap className="w-4 h-4 text-emerald-500" /> SDN Bindang 2 - Pamekasan
+              <GraduationCap className="w-3.5 h-3.5 text-emerald-500" /> SDN Bindang 2 - Pamekasan
             </span>
             <span className="text-slate-300">|</span>
             <span>Silabus Resmi BPTI Kemendikdasmen</span>
@@ -179,14 +181,14 @@ export default function SetupPage({ onStartQuiz }: SetupPageProps) {
         </div>
 
         {/* Horizontal Subject Selection Tabs Menu */}
-        <div className="bg-white/95 backdrop-blur-xs rounded-3xl border border-slate-100 shadow-xl p-3 grid grid-cols-3 gap-2">
+        <div className="bg-white/95 backdrop-blur-xs rounded-2xl border border-slate-100 shadow-md p-1.5 grid grid-cols-3 gap-2 max-w-md mx-auto">
           {(["IPA", "IPS", "Matematika"] as SubjectType[]).map((subj) => {
             const isActive = activeSubject === subj;
             let themeClass = "";
             if (isActive) {
-              if (subj === "IPA") themeClass = "bg-gradient-to-r from-blue-500 to-emerald-500 text-white shadow-lg";
-              if (subj === "IPS") themeClass = "bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-lg";
-              if (subj === "Matematika") themeClass = "bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg";
+              if (subj === "IPA") themeClass = "bg-gradient-to-r from-blue-500 to-emerald-500 text-white shadow-md";
+              if (subj === "IPS") themeClass = "bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-md";
+              if (subj === "Matematika") themeClass = "bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md";
             } else {
               themeClass = "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-100/50";
             }
@@ -196,122 +198,12 @@ export default function SetupPage({ onStartQuiz }: SetupPageProps) {
                 key={subj}
                 type="button"
                 onClick={() => setActiveSubject(subj)}
-                className={`py-4 px-2 rounded-2xl font-display font-black text-sm md:text-base transition duration-300 flex flex-col md:flex-row items-center justify-center gap-2 ${themeClass}`}
+                className={`py-2 px-2 rounded-xl font-display font-black text-xs sm:text-sm transition duration-300 flex items-center justify-center ${themeClass}`}
               >
-                <span className="text-2xl md:text-3xl">{getSubjectIcon(subj)}</span>
-                <div className="text-center md:text-left">
-                  <span className="block text-xs md:text-sm font-extrabold tracking-tight">Kategori</span>
-                  <span className="block font-black text-sm md:text-lg leading-none">{subj}</span>
-                </div>
+                <span>{subj}</span>
               </button>
             );
           })}
-        </div>
-
-        {/* API Key Configuration Dropdown with 3 columns */}
-        <div className="bg-white rounded-3xl border border-indigo-100 shadow-md overflow-hidden transition-all duration-300">
-          <button 
-            type="button"
-            onClick={() => setShowKeyConfig(!showKeyConfig)}
-            className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-indigo-50/50 text-indigo-950 hover:from-slate-100 transition duration-200 text-sm font-bold"
-          >
-            <div className="flex items-center gap-2.5">
-              <span className="p-1.5 bg-indigo-100 text-indigo-700 rounded-lg">
-                <Settings className="w-4 h-4 animate-spin-slow" />
-              </span>
-              <div className="text-left">
-                <span className="block text-sm text-indigo-900 font-extrabold">Set API Key</span>
-              </div>
-            </div>
-          </button>
-
-          {showKeyConfig && (
-            <div className="p-6 border-t border-indigo-50 space-y-4 bg-slate-50/50">
-              <div className="bg-indigo-50/70 border border-indigo-100 rounded-2xl p-4 space-y-2.5">
-                <h4 className="text-xs uppercase font-extrabold text-indigo-800 flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                  Bagaimana Membuat API Key di Gemini?
-                </h4>
-                <ol className="text-xs text-slate-600 space-y-1.5 list-decimal pl-4 leading-relaxed">
-                  <li>Kunjungi situs resmi <strong><a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">Google AI Studio</a></strong>.</li>
-                  <li>Masuk (Login) menggunakan akun Google Anda.</li>
-                  <li>Klik tombol <strong>"Get API Key"</strong> di menu samping kiri atau atas.</li>
-                  <li>Pilih <strong>"Create API Key"</strong>, lalu pilih opsi pembuatan kunci baru.</li>
-                  <li><strong>Salin (Copy)</strong> kode API Key yang muncul, lalu tempelkan pada salah satu kolom kunci di bawah ini.</li>
-                </ol>
-              </div>
-
-              {/* 3 Columns Grid for API Keys */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                
-                {/* Column 1 */}
-                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs space-y-2 relative">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-extrabold text-slate-700">🔑 Kolom Key 1 (Utama)</span>
-                    <span className={`w-2.5 h-2.5 rounded-full ${key1 ? "bg-emerald-500 animate-ping" : "bg-slate-300"}`} title={key1 ? "Siap digunakan" : "Belum diisi"}></span>
-                  </div>
-                  <input 
-                    type="password"
-                    value={key1}
-                    onChange={(e) => setKey1(e.target.value)}
-                    placeholder="AIzaSy..."
-                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <p className="text-[10px] text-slate-400">Prioritas pertama pengerjaan soal.</p>
-                </div>
-
-                {/* Column 2 */}
-                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-extrabold text-slate-700">🔑 Kolom Key 2 (Cadangan 1)</span>
-                    <span className={`w-2.5 h-2.5 rounded-full ${key2 ? "bg-amber-500" : "bg-slate-300"}`} title={key2 ? "Siap digunakan" : "Belum diisi"}></span>
-                  </div>
-                  <input 
-                    type="password"
-                    value={key2}
-                    onChange={(e) => setKey2(e.target.value)}
-                    placeholder="AIzaSy..."
-                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <p className="text-[10px] text-slate-400">Dipakai otomatis jika Key 1 limit.</p>
-                </div>
-
-                {/* Column 3 */}
-                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-extrabold text-slate-700">🔑 Kolom Key 3 (Cadangan 2)</span>
-                    <span className={`w-2.5 h-2.5 rounded-full ${key3 ? "bg-indigo-500" : "bg-slate-300"}`} title={key3 ? "Siap digunakan" : "Belum diisi"}></span>
-                  </div>
-                  <input 
-                    type="password"
-                    value={key3}
-                    onChange={(e) => setKey3(e.target.value)}
-                    placeholder="AIzaSy..."
-                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <p className="text-[10px] text-slate-400">Dipakai otomatis jika Key 2 limit.</p>
-                </div>
-
-              </div>
-
-              {/* Reset All Button */}
-              {(key1 || key2 || key3) && (
-                <div className="flex justify-end pt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setKey1("");
-                      setKey2("");
-                      setKey3("");
-                    }}
-                    className="text-[11px] font-bold text-rose-600 hover:text-rose-700 transition"
-                  >
-                    🗑️ Hapus Semua Key Tersimpan
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Main Selection Form */}
@@ -319,14 +211,11 @@ export default function SetupPage({ onStartQuiz }: SetupPageProps) {
           
           {/* Card untuk Topik Silabus */}
           <div className="bg-white rounded-3xl border border-slate-100 shadow-xl p-4 sm:p-6 space-y-5">
-            <div className="flex flex-col gap-2">
-              <h3 className="text-lg sm:text-xl font-display font-extrabold text-indigo-950 flex items-center gap-2">
-                <span className="bg-emerald-100 text-emerald-600 p-1.5 rounded-lg text-base sm:text-lg">
-                  {getSubjectIcon(activeSubject)}
-                </span>
+            <div className="flex flex-col gap-1.5">
+              <h3 className="text-sm sm:text-base font-display font-black text-indigo-950">
                 1. Pilih Topik Silabus {activeSubject}
               </h3>
-              <p className="text-[11px] sm:text-xs text-slate-500">
+              <p className="text-[11px] text-slate-500">
                 Pilih kombinasi materi untuk diramu menjadi kuis berkualitas tinggi.
               </p>
             </div>
@@ -419,78 +308,75 @@ export default function SetupPage({ onStartQuiz }: SetupPageProps) {
           </div>
 
           {/* Pengaturan Tambahan: Baris Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             
             {/* 1. Jumlah Soal */}
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-xl p-6 space-y-4">
-              <h4 className="text-lg font-display font-bold text-indigo-950 flex items-center gap-1.5">
-                <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded-lg text-sm">📋</span>
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-md p-4 space-y-3">
+              <h4 className="text-xs sm:text-sm font-display font-black text-indigo-950">
                 2. Jumlah Soal
               </h4>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-1.5">
                 {[5, 10, 15].map(cnt => (
                   <button
                     key={cnt}
                     type="button"
                     onClick={() => setQuestionCount(cnt)}
-                    className={`py-3 px-1 rounded-2xl text-center font-extrabold transition ${
+                    className={`py-1.5 px-1 rounded-xl text-center font-extrabold transition ${
                       questionCount === cnt 
-                        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200" 
+                        ? "bg-indigo-600 text-white shadow-md shadow-indigo-100" 
                         : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-100"
                     }`}
                   >
-                    <span className="text-xl block">{cnt}</span>
-                    <span className="text-[10px] uppercase font-bold tracking-wider opacity-90">Butir</span>
+                    <span className="text-sm sm:text-base block">{cnt}</span>
+                    <span className="text-[9px] uppercase font-bold tracking-wider opacity-90">Butir</span>
                   </button>
                 ))}
               </div>
             </div>
 
             {/* 2. Tingkat Kesulitan */}
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-xl p-6 space-y-4">
-              <h4 className="text-lg font-display font-bold text-indigo-950 flex items-center gap-1.5">
-                <span className="bg-yellow-100 text-yellow-600 px-2 py-0.5 rounded-lg text-sm">🔥</span>
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-md p-4 space-y-3">
+              <h4 className="text-xs sm:text-sm font-display font-black text-indigo-950">
                 3. Tingkat Kesulitan
               </h4>
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 {DIFFICULTIES.map(diff => (
                   <button
                     key={diff.value}
                     type="button"
                     onClick={() => setDifficulty(diff.value)}
-                    className={`w-full py-2 px-3 rounded-xl text-left text-xs font-extrabold flex items-center justify-between transition ${
+                    className={`w-full py-1.5 px-2.5 rounded-lg text-left text-[11px] font-extrabold flex items-center justify-between transition ${
                       difficulty === diff.value 
-                        ? "bg-indigo-600 text-white shadow-md" 
+                        ? "bg-indigo-600 text-white shadow-sm" 
                         : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-100"
                     }`}
                   >
                     <span>{diff.label}</span>
-                    {difficulty === diff.value && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                    {difficulty === diff.value && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
                   </button>
                 ))}
               </div>
             </div>
 
             {/* 3. Pendekatan Soal */}
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-xl p-6 space-y-4">
-              <h4 className="text-lg font-display font-bold text-indigo-950 flex items-center gap-1.5">
-                <span className="bg-purple-100 text-purple-600 px-2 py-0.5 rounded-lg text-sm">💡</span>
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-md p-4 space-y-3">
+              <h4 className="text-xs sm:text-sm font-display font-black text-indigo-950">
                 4. Pendekatan Soal
               </h4>
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 {APPROACHES.map(app => (
                   <button
                     key={app.value}
                     type="button"
                     onClick={() => setApproach(app.value)}
-                    className={`w-full py-2 px-3 rounded-xl text-left text-[11px] font-extrabold flex items-center justify-between transition ${
+                    className={`w-full py-1.5 px-2.5 rounded-lg text-left text-[10px] sm:text-[11px] font-extrabold flex items-center justify-between transition ${
                       approach === app.value 
-                        ? "bg-indigo-600 text-white shadow-md" 
+                        ? "bg-indigo-600 text-white shadow-sm" 
                         : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-100"
                     }`}
                   >
                     <span className="truncate">{app.label}</span>
-                    {approach === app.value && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                    {approach === app.value && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
                   </button>
                 ))}
               </div>
@@ -500,10 +386,10 @@ export default function SetupPage({ onStartQuiz }: SetupPageProps) {
 
           {/* Validation Alert */}
           {selectedTopics.length === 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3 text-amber-800 text-sm animate-pulse">
-              <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2 text-amber-800 text-[11px] sm:text-xs">
+              <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
               <div>
-                <span className="font-extrabold block">Pilih Topik Terlebih Dahulu!</span>
+                <span className="font-extrabold block text-xs">Pilih Topik Terlebih Dahulu!</span>
                 Anda harus memilih setidaknya 1 topik sains/sosial/matematika dari silabus resmi di atas agar Gemini AI dapat meramu butir kuis dengan sempurna.
               </div>
             </div>
@@ -513,25 +399,25 @@ export default function SetupPage({ onStartQuiz }: SetupPageProps) {
           <button
             type="submit"
             disabled={selectedTopics.length === 0}
-            className={`w-full py-4 rounded-3xl font-display font-black text-xl tracking-wider transition-all shadow-xl flex items-center justify-center gap-3 ${
+            className={`w-full py-2.5 rounded-xl font-display font-black text-sm sm:text-base tracking-wide transition-all shadow-md flex items-center justify-center gap-2 ${
               selectedTopics.length > 0
-                ? "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 hover:-translate-y-1 active:translate-y-0 text-white cursor-pointer"
+                ? "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 hover:-translate-y-0.5 active:translate-y-0 text-white cursor-pointer"
                 : "bg-slate-200 text-slate-400 cursor-not-allowed"
             }`}
           >
-            <Sparkles className="w-6 h-6 animate-pulse" />
-            <span>✨ Buat Soal Sekarang!</span>
+            <Sparkles className="w-4 h-4" />
+            <span>Buat Soal Sekarang</span>
           </button>
 
         </form>
 
         {/* Footer Credit & SDN Bindang 2 */}
-        <div className="text-center text-slate-400 space-y-2 py-4">
-          <p className="text-xs">
+        <div className="text-center text-slate-400 space-y-1 py-2">
+          <p className="text-[10px] sm:text-xs">
             Dibuat di bawah bimbingan guru sains dan materi olimpiade berpengalaman SDN Bindang 2 - Pamekasan untuk persiapan OSN tahun 2026.
           </p>
-          <p className="text-[10px] tracking-widest uppercase font-extrabold">
-            GENIUS OSN &copy; 2026 • SDN BINDANG 2
+          <p className="text-[10px] tracking-wide font-extrabold">
+            Copyright © 2026 Hairur Rahman
           </p>
         </div>
       </div>

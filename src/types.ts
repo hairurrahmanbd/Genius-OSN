@@ -24,7 +24,7 @@ export interface ChatMessage {
   text: string;
 }
 
-export type QuizStage = "setup" | "loading" | "quiz" | "result";
+export type QuizStage = "landing" | "setup" | "loading" | "quiz" | "result" | "bermain";
 
 export interface UserAnswer {
   questionIndex: number;

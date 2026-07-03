@@ -269,7 +269,67 @@ ATURAN KETAT UNTUK TUTOR:
 });
 
 
-// 3. Vite Server / Production files integration
+// 3. API: Bermain dengan Soal endpoints (Proxying to Gemini securely)
+app.post("/api/bermain/generate", async (req, res) => {
+  try {
+    const { systemPrompt, prompt, userApiKeys = [] } = req.body;
+    const { response, usedModel } = await executeWithFallback(userApiKeys, async (ai, model) => {
+      return ai.models.generateContent({
+        model: model,
+        contents: prompt,
+        config: {
+          systemInstruction: systemPrompt,
+          responseMimeType: "application/json"
+        }
+      });
+    });
+    res.json({ text: response.text, model: usedModel });
+  } catch (error: any) {
+    console.error("Bermain generate error:", error);
+    res.status(500).json({ error: error.message || error });
+  }
+});
+
+app.post("/api/bermain/hint", async (req, res) => {
+  try {
+    const { systemPrompt, prompt, userApiKeys = [] } = req.body;
+    const { response, usedModel } = await executeWithFallback(userApiKeys, async (ai, model) => {
+      return ai.models.generateContent({
+        model: model,
+        contents: prompt,
+        config: {
+          systemInstruction: systemPrompt
+        }
+      });
+    });
+    res.json({ text: response.text, model: usedModel });
+  } catch (error: any) {
+    console.error("Bermain hint error:", error);
+    res.status(500).json({ error: error.message || error });
+  }
+});
+
+app.post("/api/bermain/materi", async (req, res) => {
+  try {
+    const { systemPrompt, prompt, userApiKeys = [] } = req.body;
+    const { response, usedModel } = await executeWithFallback(userApiKeys, async (ai, model) => {
+      return ai.models.generateContent({
+        model: model,
+        contents: prompt,
+        config: {
+          systemInstruction: systemPrompt
+        }
+      });
+    });
+    res.json({ text: response.text, model: usedModel });
+  } catch (error: any) {
+    console.error("Bermain materi error:", error);
+    res.status(500).json({ error: error.message || error });
+  }
+});
+
+
+// 4. Vite Server / Production files integration
 async function setupVite() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
