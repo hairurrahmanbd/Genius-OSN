@@ -386,10 +386,10 @@ ATURAN KETAT UNTUK TUTOR:
             </div>
 
             {/* Question Text */}
-            <div className="space-y-3">
+            <div className="space-y-2">
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Pertanyaan OSN</span>
-              <div className="p-4 sm:p-5 bg-indigo-50/50 border border-indigo-100 rounded-2xl">
-                <p id={`qn-${currentIndex}`} className="text-sm sm:text-base font-bold font-sans text-indigo-950 leading-relaxed">
+              <div className="p-4 sm:p-5 bg-indigo-50/40 border-2 border-indigo-200/80 rounded-2xl shadow-inner">
+                <p id={`qn-${currentIndex}`} className="text-xs sm:text-sm font-bold font-sans text-indigo-950 leading-relaxed">
                   {activeQuestion.question}
                 </p>
               </div>

@@ -1017,7 +1017,7 @@ Gaya penjelasan yang diminta: ${modeDescMap[materiMode]}`;
                   )}
 
                   {/* QUESTION BOX */}
-                  <div className="bg-gradient-to-br from-indigo-50/50 to-pink-50/50 border-l-4 border-indigo-600 p-4 rounded-xl font-extrabold text-slate-800 text-sm sm:text-base leading-relaxed overflow-x-auto">
+                  <div className="bg-gradient-to-br from-indigo-50/40 to-pink-50/40 border-2 border-indigo-200/80 p-4 rounded-2xl font-extrabold text-slate-800 text-xs sm:text-sm leading-relaxed overflow-x-auto shadow-inner">
                     {questions[currentIdx].question}
                   </div>
 
@@ -1216,11 +1216,11 @@ Gaya penjelasan yang diminta: ${modeDescMap[materiMode]}`;
                   )}
 
                   {/* BOTTOM PLAY NAVIGATION */}
-                  <div className="flex gap-2 pt-2">
+                  <div className="flex gap-1.5 pt-2">
                     <button
                       disabled={currentIdx === 0}
                       onClick={handlePrevQuestion}
-                      className={`btn-fun py-2 px-3 rounded-xl border-2 border-slate-300 font-black text-[10px] sm:text-xs ${
+                      className={`btn-fun py-1.5 px-2.5 rounded-lg border-2 border-slate-300 font-black text-[9px] sm:text-[11px] ${
                         currentIdx === 0
                           ? "opacity-40 cursor-not-allowed bg-slate-100 text-slate-400"
                           : "bg-slate-50 hover:bg-slate-100 text-slate-700 shadow-sm"
@@ -1231,7 +1231,7 @@ Gaya penjelasan yang diminta: ${modeDescMap[materiMode]}`;
 
                     <button
                       onClick={handleAskTutorAI}
-                      className="btn-fun flex-1 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold rounded-xl border-2 border-indigo-200 text-[10px] sm:text-xs flex items-center justify-center gap-1 shadow-sm"
+                      className="btn-fun flex-1 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold rounded-lg border-2 border-indigo-200 text-[9px] sm:text-[11px] flex items-center justify-center gap-1 shadow-sm"
                     >
                       🤖 Petunjuk AI
                     </button>
@@ -1239,7 +1239,7 @@ Gaya penjelasan yang diminta: ${modeDescMap[materiMode]}`;
                     <button
                       disabled={!questionStates[currentIdx].answered}
                       onClick={handleNextQuestion}
-                      className={`btn-fun py-2 px-3 sm:px-4 rounded-xl border-2 border-indigo-700 text-white font-extrabold text-[10px] sm:text-xs shadow-sm flex items-center gap-1 ${
+                      className={`btn-fun py-1.5 px-2.5 sm:px-3.5 rounded-lg border-2 border-indigo-700 text-white font-extrabold text-[9px] sm:text-[11px] shadow-sm flex items-center gap-1 ${
                         !questionStates[currentIdx].answered
                           ? "opacity-50 cursor-not-allowed bg-slate-300 border-slate-400 shadow-none text-slate-500"
                           : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95"
@@ -1252,17 +1252,17 @@ Gaya penjelasan yang diminta: ${modeDescMap[materiMode]}`;
                   </div>
 
                   {/* ACTIVE NAVIGATION DOTS GRID - AT TOP ON MOBILE / DESKTOP ALIGNED */}
-                  <div className="border-t border-slate-100 pt-4 space-y-2.5">
+                  <div className="border-t border-slate-100 pt-3.5 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black uppercase text-indigo-800 tracking-wider flex items-center gap-1">
                         🧭 PETA NAVIGATOR SOAL:
                       </span>
-                      <span className="bg-slate-100 text-slate-500 font-black text-[10px] py-0.5 px-2.5 rounded-full">
+                      <span className="bg-slate-100 text-slate-500 font-black text-[9px] py-0.5 px-2 rounded-full">
                         {questions.length} Soal
                       </span>
                     </div>
 
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-1">
                       {questions.map((_, idx) => {
                         const st = questionStates[idx];
                         const isCurrent = idx === currentIdx;
@@ -1298,7 +1298,7 @@ Gaya penjelasan yang diminta: ${modeDescMap[materiMode]}`;
                                 setBsSelections({});
                               }
                             }}
-                            className={`w-8 h-8 rounded-lg border text-xs flex items-center justify-center font-bold transition active:scale-90 ${pillClass}`}
+                            className={`w-6 h-6 rounded-md border text-[10px] flex items-center justify-center font-bold transition active:scale-90 ${pillClass}`}
                           >
                             {idx + 1}
                           </button>

@@ -23,7 +23,7 @@ export async function callGeminiDirectRest({
   }
 
   // We rotate models to find one that succeeds and supports our generation options
-  const modelsToTry = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b"];
+  const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-flash-lite"];
 
   let lastError: any = null;
 
