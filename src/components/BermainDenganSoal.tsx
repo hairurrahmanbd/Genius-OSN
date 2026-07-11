@@ -226,10 +226,27 @@ ${langNote}
 ATURAN PANJANG SOAL — WAJIB DIPATUHI:
 ${lengthRule}
 
-JENIS SOAL (variasikan secara adil antara ketiga jenis berikut):
-- pg: pilihan ganda biasa, 1 jawaban benar. Field WAJIB lengkap: type (isi "pg"), bloomLevel, question, options (array 4 string pilihan), correctAnswer (string jawaban yang benar), explanation.
-- pg_kompleks: PG dengan 2-3 jawaban benar. Field WAJIB lengkap: type (isi "pg_kompleks"), bloomLevel, question, options (array 4 string pilihan), correctAnswers (array 2-3 string jawaban benar), explanation.
-- benar_salah: 3 pernyataan Benar/Salah. Field WAJIB lengkap: type (isi "benar_salah"), bloomLevel, question, statements (array berisi tepat 3 objek {text, answer}), explanation.
+DISTRIBUSI JENIS SOAL (SANGAT PENTING):
+Kamu harus membuat variasi jenis soal secara seimbang antara "pg", "pg_kompleks", dan "benar_salah". JANGAN hanya membuat satu jenis saja (misal hanya membuat benar_salah). Bagilah secara rata dari total ${questionCount} soal yang diminta.
+
+JENIS SOAL & STRUKTUR PENGISIAN FIELD:
+Setiap objek soal kuis di dalam array "questions" harus memiliki SEMUA field berikut tanpa terkecuali, demi kesesuaian skema JSON yang ketat:
+1. "type": diisi dengan string "pg", "pg_kompleks", atau "benar_salah" (WAJIB bervariasi secara adil).
+2. "bloomLevel": level taksonomi Bloom (misal: "C2", "C3", "C4").
+3. "question": teks pertanyaan utama yang ramah anak SD.
+4. "options": array string pilihan jawaban.
+   - Untuk "pg" dan "pg_kompleks": wajib berisi tepat 4 pilihan jawaban unik.
+   - Untuk "benar_salah": wajib diisi array kosong [].
+5. "correctAnswer": string jawaban yang benar.
+   - Untuk "pg": diisi teks pilihan yang benar (harus persis sama dengan salah satu pilihan di "options").
+   - Untuk "pg_kompleks" dan "benar_salah": wajib diisi string kosong "".
+6. "correctAnswers": array string jawaban benar.
+   - Untuk "pg_kompleks": wajib berisi 2 atau 3 teks pilihan yang benar (masing-masing harus persis sama dengan pilihan di "options").
+   - Untuk "pg" dan "benar_salah": wajib diisi array kosong [].
+7. "statements": array berisi objek pernyataan Benar/Salah.
+   - Untuk "benar_salah": wajib berisi tepat 3 objek, masing-masing dengan properti "text" (teks pernyataan) dan "answer" (hanya boleh bernilai string "Benar" atau "Salah").
+   - Untuk "pg" dan "pg_kompleks": wajib diisi array kosong [].
+8. "explanation": penjelasan/pembahasan jawaban yang ramah anak dan edukatif.
 
 ATURAN PENTING LAINNYA:
 1. correctAnswer harus PERSIS sama dengan salah satu teks pilihan di "options".
@@ -254,7 +271,10 @@ ATURAN PENTING LAINNYA:
           items: {
             type: "OBJECT",
             properties: {
-              type: { type: "STRING" },
+              type: { 
+                type: "STRING",
+                enum: ["pg", "pg_kompleks", "benar_salah"]
+              },
               bloomLevel: { type: "STRING" },
               question: { type: "STRING" },
               options: {
@@ -272,14 +292,26 @@ ATURAN PENTING LAINNYA:
                   type: "OBJECT",
                   properties: {
                     text: { type: "STRING" },
-                    answer: { type: "STRING" }
+                    answer: { 
+                      type: "STRING",
+                      enum: ["Benar", "Salah"]
+                    }
                   },
                   required: ["text", "answer"]
                 }
               },
               explanation: { type: "STRING" }
             },
-            required: ["type", "bloomLevel", "question", "explanation"]
+            required: [
+              "type", 
+              "bloomLevel", 
+              "question", 
+              "options", 
+              "correctAnswer", 
+              "correctAnswers", 
+              "statements", 
+              "explanation"
+            ]
           }
         }
       },
