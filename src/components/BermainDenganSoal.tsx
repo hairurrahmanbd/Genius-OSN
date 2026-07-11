@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { AlertCircle, ArrowLeft, BookOpen, Check, Copy, HelpCircle, Home, Key, Play, RotateCcw, Settings, Volume2, VolumeX } from "lucide-react";
+import { callGeminiDirectRest } from "../lib/geminiDirect";
 
 interface PlayPageProps {
   onBackToMainMenu: () => void;
@@ -115,39 +116,55 @@ export default function BermainDenganSoal({ onBackToMainMenu, apiKeys }: PlayPag
     return apiKeys.map(k => k.trim()).filter(k => k.length > 0);
   };
 
-  // === SECURE CALL VIA EXPRESS BACKEND PROXY ===
+  // === SECURE CALL VIA EXPRESS BACKEND PROXY (WITH DIRECT FALLBACK) ===
   const callGeminiSecure = async (endpoint: "generate" | "hint" | "materi", systemPrompt: string, userPrompt: string) => {
     const keys = getGeminiKeys();
     if (keys.length === 0) {
       throw new Error("API Key Gemini belum diisi. Silakan isi API Key Anda di Menu Utama terlebih dahulu.");
     }
 
-    const response = await fetch(`/api/bermain/${endpoint}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemPrompt,
+    try {
+      const response = await fetch(`/api/bermain/${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemPrompt,
+          prompt: userPrompt,
+          userApiKeys: keys
+        })
+      });
+
+      let data: any = {};
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const textError = await response.text();
+        console.warn("Express proxy response was not JSON (probably 404 or static site hosting):", textError);
+        // Trigger fallback to client-side direct request
+        throw new Error("TRIGGER_CLIENT_FALLBACK");
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || "Gagal berkomunikasi dengan AI.");
+      }
+
+      setLastUsedProvider(data.model ? `Gemini (${data.model})` : "Gemini");
+      return data.text;
+    } catch (proxyError: any) {
+      console.warn("Express backend proxy failed, falling back to direct client-side Gemini call...", proxyError.message || proxyError);
+      
+      // Direct call configuration
+      const result = await callGeminiDirectRest({
+        userApiKeys: keys,
+        systemInstruction: systemPrompt,
         prompt: userPrompt,
-        userApiKeys: keys
-      })
-    });
+        responseMimeType: endpoint === "generate" ? "application/json" : undefined
+      });
 
-    let data: any = {};
-    const contentType = response.headers.get("content-type");
-    if (contentType && contentType.includes("application/json")) {
-      data = await response.json();
-    } else {
-      const textError = await response.text();
-      console.error("Non-JSON reply from server:", textError);
-      throw new Error(`Sinyal server laboratorium terganggu (HTTP ${response.status}).`);
+      setLastUsedProvider(`Gemini Direct (${result.model})`);
+      return result.text;
     }
-
-    if (!response.ok) {
-      throw new Error(data.error || "Gagal berkomunikasi dengan AI.");
-    }
-
-    setLastUsedProvider(data.model ? `Gemini (${data.model})` : "Gemini");
-    return data.text;
   };
 
   const sanitizeJson = (rawText: string) => {
@@ -1199,14 +1216,14 @@ Gaya penjelasan yang diminta: ${modeDescMap[materiMode]}`;
                   )}
 
                   {/* BOTTOM PLAY NAVIGATION */}
-                  <div className="flex gap-2.5 pt-2">
+                  <div className="flex gap-2 pt-2">
                     <button
                       disabled={currentIdx === 0}
                       onClick={handlePrevQuestion}
-                      className={`btn-fun py-3 px-4 rounded-xl border-2 border-slate-300 font-black text-xs sm:text-sm ${
+                      className={`btn-fun py-2 px-3 rounded-xl border-2 border-slate-300 font-black text-[10px] sm:text-xs ${
                         currentIdx === 0
                           ? "opacity-40 cursor-not-allowed bg-slate-100 text-slate-400"
-                          : "bg-slate-50 hover:bg-slate-100 text-slate-700 shadow-md"
+                          : "bg-slate-50 hover:bg-slate-100 text-slate-700 shadow-sm"
                       }`}
                     >
                       ⬅️ Sebelumnya
@@ -1214,7 +1231,7 @@ Gaya penjelasan yang diminta: ${modeDescMap[materiMode]}`;
 
                     <button
                       onClick={handleAskTutorAI}
-                      className="btn-fun flex-1 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold rounded-xl border-2 border-indigo-200 text-xs sm:text-sm flex items-center justify-center gap-1 shadow-md"
+                      className="btn-fun flex-1 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold rounded-xl border-2 border-indigo-200 text-[10px] sm:text-xs flex items-center justify-center gap-1 shadow-sm"
                     >
                       🤖 Petunjuk AI
                     </button>
@@ -1222,7 +1239,7 @@ Gaya penjelasan yang diminta: ${modeDescMap[materiMode]}`;
                     <button
                       disabled={!questionStates[currentIdx].answered}
                       onClick={handleNextQuestion}
-                      className={`btn-fun py-3 px-5 rounded-xl border-2 border-indigo-700 text-white font-extrabold text-xs sm:text-sm shadow-md flex items-center gap-1 ${
+                      className={`btn-fun py-2 px-3 sm:px-4 rounded-xl border-2 border-indigo-700 text-white font-extrabold text-[10px] sm:text-xs shadow-sm flex items-center gap-1 ${
                         !questionStates[currentIdx].answered
                           ? "opacity-50 cursor-not-allowed bg-slate-300 border-slate-400 shadow-none text-slate-500"
                           : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95"

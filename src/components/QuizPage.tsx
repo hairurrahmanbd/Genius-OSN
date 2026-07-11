@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Question, UserAnswer, ChatMessage } from "../types";
+import { callGeminiDirectRest } from "../lib/geminiDirect";
 import { 
   Bot, 
   Send, 
@@ -113,6 +114,7 @@ export default function QuizPage({ questions, difficulty, subject, onExit, onFin
     setTutorLoading(true);
 
     try {
+      // 1. Try Express Proxy first
       const response = await fetch("/api/tutor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -135,8 +137,8 @@ export default function QuizPage({ questions, difficulty, subject, onExit, onFin
         data = await response.json();
       } else {
         const textError = await response.text();
-        console.error("Non-JSON response from server:", textError);
-        throw new Error(`Sinyal tutor terganggu (HTTP ${response.status}).`);
+        console.warn("Express tutor proxy response was not JSON, falling back to direct client call...", textError);
+        throw new Error("TRIGGER_CLIENT_FALLBACK");
       }
 
       if (!response.ok) {
@@ -155,15 +157,61 @@ export default function QuizPage({ questions, difficulty, subject, onExit, onFin
       }));
 
     } catch (err: any) {
-      const errorMsg: ChatMessage = {
-        id: Math.random().toString(),
-        role: "model",
-        text: ` Waduh maaf, sinyal ke satelit sains terganggu sebentar! 🛰️ (${err.message}). Tapi kuis tetap bisa kamu lanjutkan ya!`
-      };
-      setTutorChats(prev => ({
-        ...prev,
-        [currentIndex]: [...updatedHistoryForQ, errorMsg]
-      }));
+      console.warn("Express proxy for Tutor failed, running client direct call fallback...", err);
+      try {
+        const contextPrompt = `Kamu adalah Tutor AI OSN ${subject} SD yang bersahabat, sabar, dan menggunakan metode Socratic (tanya jawab pemandu). 
+Tugasmu adalah membimbing siswa SD Kelas 6 agar paham konsep mandiri tanpa pernah menyebut jawaban kunci ("A", "B", "C", "D" atau isinya) secara langsung!
+
+SOAL YANG SEDANG DIBAHAS:
+- Soal: "${activeQuestion.question}"
+- Pilihan Jawaban:
+  ${activeQuestion.options.map((opt: string, idx: number) => `Index ${idx}: ${opt}`).join("\n  ")}
+- Index Jawaban Benar: ${activeQuestion.correctIndex} (Jawaban yang benar adalah "${activeQuestion.options[activeQuestion.correctIndex]}")
+- Penjelasan Ilmiah: "${activeQuestion.explanation}"
+- Siswa memilih saat kuis: ${activeAnswer.selectedOption !== null ? `Jawaban ke-${activeAnswer.selectedOption} ("${activeQuestion.options[activeAnswer.selectedOption]}")` : "Belum memilih"}
+
+ATURAN KETAT UNTUK TUTOR:
+1. JANGAN PERNAH menyodorkan pilihan yang benar kepada siswa (misal: "Jadi jawabannya B", "Pilih C ya").
+2. Jika mereka bertanya langsung jawabannya apa, jawablah dengan bercanda, teka-teki, analogi, atau carikan petunjuk logisnya terlebih dahulu agar siswa yang menebaknya sendiri.
+3. Gunakan analogi kehidupan sehari-hari anak-anak (seperti main bola, mengamati semut, membagi makanan, menabung uang, mengamati bintang).
+4. Anggap siswa adalah peserta olimpiade cerdas dari SDN Bindang 2 Pamekasan. Semangati mereka dengan kata-kata hangat!
+5. Jawab dengan paragraf yang singkat, ramah, gunakan emojis (😊, 🪐, 🧫, 🔍, 📈, 📐) agar tidak membosankan anak-anak.`;
+
+        // Direct call to Gemini REST API
+        const result = await callGeminiDirectRest({
+          userApiKeys: customApiKeys,
+          systemInstruction: contextPrompt,
+          prompt: userMsg.text,
+          temperature: 0.8,
+          // Convert history to direct REST format, skipping the first welcoming instruction card
+          chatHistory: updatedHistoryForQ.slice(1, -1).map(h => ({
+            role: h.role,
+            text: h.text
+          }))
+        });
+
+        const tutorResponse: ChatMessage = {
+          id: Math.random().toString(),
+          role: "model",
+          text: result.text
+        };
+
+        setTutorChats(prev => ({
+          ...prev,
+          [currentIndex]: [...updatedHistoryForQ, tutorResponse]
+        }));
+      } catch (fallbackErr: any) {
+        console.error("Tutor direct fallback also failed:", fallbackErr);
+        const errorMsg: ChatMessage = {
+          id: Math.random().toString(),
+          role: "model",
+          text: ` Waduh maaf, bimbingan Tutor AI sedang mengalami kendala teknis sebentar! 🛰️ (${fallbackErr.message}). Tapi kamu tetap bisa lanjut mengerjakan kuis ya!`
+        };
+        setTutorChats(prev => ({
+          ...prev,
+          [currentIndex]: [...updatedHistoryForQ, errorMsg]
+        }));
+      }
     } finally {
       setTutorLoading(false);
     }
@@ -338,11 +386,13 @@ export default function QuizPage({ questions, difficulty, subject, onExit, onFin
             </div>
 
             {/* Question Text */}
-            <div className="space-y-4">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-400">Pertanyaan OSN</span>
-              <p id={`qn-${currentIndex}`} className="text-lg md:text-xl font-bold font-sans text-indigo-950 leading-relaxed">
-                {activeQuestion.question}
-              </p>
+            <div className="space-y-3">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Pertanyaan OSN</span>
+              <div className="p-4 sm:p-5 bg-indigo-50/50 border border-indigo-100 rounded-2xl">
+                <p id={`qn-${currentIndex}`} className="text-sm sm:text-base font-bold font-sans text-indigo-950 leading-relaxed">
+                  {activeQuestion.question}
+                </p>
+              </div>
             </div>
 
             {/* Selection Options Grid */}

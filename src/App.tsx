@@ -6,6 +6,7 @@ import ResultPage from "./components/ResultPage";
 import BermainDenganSoal from "./components/BermainDenganSoal";
 import { Question, QuizConfig, QuizStage, UserAnswer } from "./types";
 import { AlertTriangle, RefreshCw, Undo2, Award, Sparkles, BrainCircuit, Gamepad2, GraduationCap, Settings, Key, ShieldCheck } from "lucide-react";
+import { callGeminiDirectRest } from "./lib/geminiDirect";
 
 export default function App() {
   const [stage, setStage] = useState<QuizStage>("landing");
@@ -48,6 +49,7 @@ export default function App() {
     setLoadingError(null);
 
     try {
+      // 1. Try Express Proxy first
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -67,8 +69,8 @@ export default function App() {
         data = await response.json();
       } else {
         const textError = await response.text();
-        console.error("Non-JSON response from server:", textError);
-        throw new Error(`Sinyal ke server laboratorium terganggu (HTTP ${response.status}). Hubungi bimbingan teknis SDN Bindang 2.`);
+        console.warn("Express proxy response was not JSON, falling back to direct client call...", textError);
+        throw new Error("TRIGGER_CLIENT_FALLBACK");
       }
 
       if (!response.ok) {
@@ -82,8 +84,93 @@ export default function App() {
       setQuestions(data.questions);
       setStage("quiz");
     } catch (err: any) {
-      console.error(err);
-      setLoadingError(err.message || "Terjadi kendala jaringan saat meramu soal OSN.");
+      // 2. Fallback to Direct Client-side Gemini REST Call
+      console.warn("Primary API route failed, running direct fallback...", err);
+      try {
+        const topicsString = config.topics.join(", ");
+        let subjectTitle = "OSN IPA SD";
+        let subjectFocus = "sains mendalam, bukan sekadar hafalan fakta";
+        let systemInstruction = "Kamu adalah pembuat soal olimpiade sains (OSN) IPA SD terbaik tingkat nasional. Desain soal pilihan ganda kamu menuntut kemampuan analisis tingkat tinggi (HOTS), logis, mendalam, dan mendidik.";
+        let descriptionText = "Daftar soal OSN IPA SD materi fisika, biologi, atau kimia dasar kelas 6";
+
+        if (config.subject === "IPS") {
+          subjectTitle = "OSN IPS (Ilmu Pengetahuan Sosial) SD";
+          subjectFocus = "pemahaman geografi, interaksi sosial, sosiologi, sejarah perjuangan bangsa, dan ekonomi dasar secara kritis";
+          systemInstruction = "Kamu adalah pembuat soal olimpiade IPS (OSN) SD terbaik tingkat nasional. Desain soal pilihan ganda kamu menuntut analisis spasial, sejarah kritis, sosiologi, dan ekonomi dasar yang mendidik dan HOTS.";
+          descriptionText = "Daftar soal OSN IPS SD materi geografi, sejarah, sosiologi, atau ekonomi kelas 6";
+        } else if (config.subject === "Matematika") {
+          subjectTitle = "OSN Matematika SD";
+          subjectFocus = "logika matematis, pemecahan masalah kreatif (problem solving), geometri, kombinatorik, dan aritmatika tingkat tinggi";
+          systemInstruction = "Kamu adalah pembuat soal olimpiade Matematika (OSN) SD terbaik tingkat nasional. Desain soal pilihan ganda kamu menuntut kecerdasan logika, eksplorasi pola, geometri, pemecahan masalah matematis (HOTS) yang kreatif.";
+          descriptionText = "Daftar soal OSN Matematika SD materi bilangan, aritmatika, geometri, statistika, atau kombinatorik kelas 6";
+        }
+
+        const prompt = `Buatlah tepat ${config.count} soal pilihan ganda ${subjectTitle} tingkat nasional (kelas 6) bernilai HOTS (Higher Order Thinking Skills).
+Topik yang dicakup: [ ${topicsString} ]
+Tingkat Kesulitan: ${config.difficulty}
+Pendekatan Soal: ${config.approach}
+
+Kualitas soal wajib memenuhi kriteria berikut:
+- Menguji kemampuan analisis, eksperimen, inkuiri, atau ${subjectFocus}.
+- Opsi pengecoh (distraktor) harus logis, realistis, dan menantang, memaksa siswa menganalisis variabel atau prinsip dengan seksama.
+- Penjelasan ("explanation") harus menjabarkan konsep secara komprehensif, logis, dan mudah dimengerti anak SD.
+- Trik olimpiade ("trick") harus memberikan cara cepat menganalisis soal, shortcut memahami pola soal, atau jembatan keledai yang memudahkan mengingat prinsip tersebut.
+- Semua teks dalam Bahasa Indonesia yang baik dan benar. Opsi jawaban harus diawali dengan "A. ", "B. ", "C. ", atau "D. ".`;
+
+        const responseSchema = {
+          type: "OBJECT",
+          properties: {
+            questions: {
+              type: "ARRAY",
+              description: descriptionText,
+              items: {
+                type: "OBJECT",
+                properties: {
+                  topic: { type: "STRING" },
+                  difficulty: { type: "STRING" },
+                  question: { type: "STRING" },
+                  options: {
+                    type: "ARRAY",
+                    items: { type: "STRING" }
+                  },
+                  correctIndex: { type: "INTEGER" },
+                  explanation: { type: "STRING" },
+                  trick: { type: "STRING" }
+                },
+                required: ["topic", "difficulty", "question", "options", "correctIndex", "explanation", "trick"]
+              }
+            }
+          },
+          required: ["questions"]
+        };
+
+        const result = await callGeminiDirectRest({
+          userApiKeys: apiKeys,
+          systemInstruction,
+          prompt,
+          responseMimeType: "application/json",
+          responseSchema
+        });
+
+        // Clean and parse JSON
+        let t = result.text.trim();
+        t = t.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?\s*```\s*$/i, "").trim();
+        const firstBrace = t.indexOf("{");
+        if (firstBrace !== -1) t = t.slice(firstBrace);
+        const lastBrace = t.lastIndexOf("}");
+        if (lastBrace !== -1) t = t.slice(0, lastBrace + 1);
+
+        const parsed = JSON.parse(t);
+        if (!parsed.questions || !Array.isArray(parsed.questions) || parsed.questions.length === 0) {
+          throw new Error("Struktur soal yang dikembalikan AI kosong atau tidak valid.");
+        }
+
+        setQuestions(parsed.questions);
+        setStage("quiz");
+      } catch (fallbackErr: any) {
+        console.error("Direct fallback also failed:", fallbackErr);
+        setLoadingError(fallbackErr.message || "Terjadi kendala saat meramu soal OSN melalui server maupun jalur langsung.");
+      }
     }
   };
 
