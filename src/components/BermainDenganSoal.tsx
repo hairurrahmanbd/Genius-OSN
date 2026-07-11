@@ -155,11 +155,54 @@ export default function BermainDenganSoal({ onBackToMainMenu, apiKeys }: PlayPag
       console.warn("Express backend proxy failed, falling back to direct client-side Gemini call...", proxyError.message || proxyError);
       
       // Direct call configuration
+      const responseSchema = endpoint === "generate" ? {
+        type: "OBJECT",
+        properties: {
+          questions: {
+            type: "ARRAY",
+            description: "Daftar kuis interaktif",
+            items: {
+              type: "OBJECT",
+              properties: {
+                type: { type: "STRING" },
+                bloomLevel: { type: "STRING" },
+                question: { type: "STRING" },
+                options: {
+                  type: "ARRAY",
+                  items: { type: "STRING" }
+                },
+                correctAnswer: { type: "STRING" },
+                correctAnswers: {
+                  type: "ARRAY",
+                  items: { type: "STRING" }
+                },
+                statements: {
+                  type: "ARRAY",
+                  items: {
+                    type: "OBJECT",
+                    properties: {
+                      text: { type: "STRING" },
+                      answer: { type: "STRING" }
+                    },
+                    required: ["text", "answer"]
+                  }
+                },
+                explanation: { type: "STRING" },
+                imageSvg: { type: "STRING" }
+              },
+              required: ["type", "bloomLevel", "question", "explanation"]
+            }
+          }
+        },
+        required: ["questions"]
+      } : undefined;
+
       const result = await callGeminiDirectRest({
         userApiKeys: keys,
         systemInstruction: systemPrompt,
         prompt: userPrompt,
-        responseMimeType: endpoint === "generate" ? "application/json" : undefined
+        responseMimeType: endpoint === "generate" ? "application/json" : undefined,
+        responseSchema
       });
 
       setLastUsedProvider(`Gemini Direct (${result.model})`);
