@@ -123,6 +123,8 @@ Kualitas soal wajib memenuhi kriteria berikut:
             questions: {
               type: "ARRAY",
               description: descriptionText,
+              minItems: config.count,
+              maxItems: config.count,
               items: {
                 type: "OBJECT",
                 properties: {

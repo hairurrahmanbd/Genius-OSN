@@ -130,6 +130,8 @@ Kualitas soal wajib memenuhi kriteria berikut:
               questions: {
                 type: Type.ARRAY,
                 description: descriptionText,
+                minItems: count,
+                maxItems: count,
                 items: {
                   type: Type.OBJECT,
                   properties: {
@@ -272,14 +274,15 @@ ATURAN KETAT UNTUK TUTOR:
 // 3. API: Bermain dengan Soal endpoints (Proxying to Gemini securely)
 app.post("/api/bermain/generate", async (req, res) => {
   try {
-    const { systemPrompt, prompt, userApiKeys = [] } = req.body;
+    const { systemPrompt, prompt, userApiKeys = [], responseSchema } = req.body;
     const { response, usedModel } = await executeWithFallback(userApiKeys, async (ai, model) => {
       return ai.models.generateContent({
         model: model,
         contents: prompt,
         config: {
           systemInstruction: systemPrompt,
-          responseMimeType: "application/json"
+          responseMimeType: "application/json",
+          responseSchema: responseSchema
         }
       });
     });

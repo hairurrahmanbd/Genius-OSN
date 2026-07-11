@@ -117,7 +117,12 @@ export default function BermainDenganSoal({ onBackToMainMenu, apiKeys }: PlayPag
   };
 
   // === SECURE CALL VIA EXPRESS BACKEND PROXY (WITH DIRECT FALLBACK) ===
-  const callGeminiSecure = async (endpoint: "generate" | "hint" | "materi", systemPrompt: string, userPrompt: string) => {
+  const callGeminiSecure = async (
+    endpoint: "generate" | "hint" | "materi",
+    systemPrompt: string,
+    userPrompt: string,
+    responseSchema?: any
+  ) => {
     const keys = getGeminiKeys();
     if (keys.length === 0) {
       throw new Error("API Key Gemini belum diisi. Silakan isi API Key Anda di Menu Utama terlebih dahulu.");
@@ -130,7 +135,8 @@ export default function BermainDenganSoal({ onBackToMainMenu, apiKeys }: PlayPag
         body: JSON.stringify({
           systemPrompt,
           prompt: userPrompt,
-          userApiKeys: keys
+          userApiKeys: keys,
+          responseSchema: endpoint === "generate" ? responseSchema : undefined
         })
       });
 
@@ -154,55 +160,12 @@ export default function BermainDenganSoal({ onBackToMainMenu, apiKeys }: PlayPag
     } catch (proxyError: any) {
       console.warn("Express backend proxy failed, falling back to direct client-side Gemini call...", proxyError.message || proxyError);
       
-      // Direct call configuration
-      const responseSchema = endpoint === "generate" ? {
-        type: "OBJECT",
-        properties: {
-          questions: {
-            type: "ARRAY",
-            description: "Daftar kuis interaktif",
-            items: {
-              type: "OBJECT",
-              properties: {
-                type: { type: "STRING" },
-                bloomLevel: { type: "STRING" },
-                question: { type: "STRING" },
-                options: {
-                  type: "ARRAY",
-                  items: { type: "STRING" }
-                },
-                correctAnswer: { type: "STRING" },
-                correctAnswers: {
-                  type: "ARRAY",
-                  items: { type: "STRING" }
-                },
-                statements: {
-                  type: "ARRAY",
-                  items: {
-                    type: "OBJECT",
-                    properties: {
-                      text: { type: "STRING" },
-                      answer: { type: "STRING" }
-                    },
-                    required: ["text", "answer"]
-                  }
-                },
-                explanation: { type: "STRING" },
-                imageSvg: { type: "STRING" }
-              },
-              required: ["type", "bloomLevel", "question", "explanation"]
-            }
-          }
-        },
-        required: ["questions"]
-      } : undefined;
-
       const result = await callGeminiDirectRest({
         userApiKeys: keys,
         systemInstruction: systemPrompt,
         prompt: userPrompt,
         responseMimeType: endpoint === "generate" ? "application/json" : undefined,
-        responseSchema
+        responseSchema: endpoint === "generate" ? responseSchema : undefined
       });
 
       setLastUsedProvider(`Gemini Direct (${result.model})`);
@@ -216,45 +179,9 @@ export default function BermainDenganSoal({ onBackToMainMenu, apiKeys }: PlayPag
     t = t.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?\s*```\s*$/i, "").trim();
 
     const firstBrace = t.indexOf("{");
-    const firstBracket = t.indexOf("[");
-    let startIdx = -1;
-    if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) startIdx = firstBrace;
-    else if (firstBracket !== -1) startIdx = firstBracket;
-    if (startIdx > 0) t = t.slice(startIdx);
-
-    const openChar = t[0];
-    const closeChar = openChar === "{" ? "}" : "]";
-    let depth = 0, endIdx = -1;
-    let inStr = false, escape = false;
-    for (let i = 0; i < t.length; i++) {
-      const c = t[i];
-      if (escape) { escape = false; continue; }
-      if (c === "\\" && inStr) { escape = true; continue; }
-      if (c === '"') { inStr = !inStr; continue; }
-      if (inStr) continue;
-      if (c === openChar) depth++;
-      else if (c === closeChar) { depth--; if (depth === 0) { endIdx = i; break; } }
-    }
-    if (endIdx !== -1) t = t.slice(0, endIdx + 1);
-    t = t.replace(/\r/g, "").replace(/\x00/g, "");
-
-    // Autoclose JSON if needed
-    const stack: string[] = [];
-    inStr = false;
-    escape = false;
-    for (let i = 0; i < t.length; i++) {
-      const c = t[i];
-      if (escape) { escape = false; continue; }
-      if (c === "\\" && inStr) { escape = true; continue; }
-      if (c === '"') { inStr = !inStr; continue; }
-      if (inStr) continue;
-      if (c === "{" || c === "[") stack.push(c);
-      else if (c === "}" || c === "]") stack.pop();
-    }
-    if (inStr) t += '"';
-    while (stack.length) {
-      const open = stack.pop();
-      t += open === "{" ? "}" : "]";
+    const lastBrace = t.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      t = t.slice(firstBrace, lastBrace + 1);
     }
     return t;
   };
@@ -281,9 +208,6 @@ export default function BermainDenganSoal({ onBackToMainMenu, apiKeys }: PlayPag
       ? `PENTING: Mapel ini adalah Bahasa Inggris. Soal WAJIB menggunakan Bahasa Inggris dasar (sesuai tingkat kesulitan ${diffValue} SD). Pembahasan bisa bilingual (Indonesia + Inggris).`
       : "";
 
-    const imageCount = Math.max(1, Math.round(questionCount * 0.3));
-    const nonImageCount = questionCount - imageCount;
-
     const lengthInstructions: Record<string, string> = {
       "Pendek (Sederhana dan ringkas, 10-20 kata)":
         "PENDEK: Setiap teks soal (field \"question\") WAJIB terdiri dari 10 sampai 20 kata. Hitung katanya! Jangan lebih dari 20 kata.",
@@ -302,27 +226,65 @@ ${langNote}
 ATURAN PANJANG SOAL — WAJIB DIPATUHI:
 ${lengthRule}
 
-GAMBAR SOAL (SVG Inline):
-- Tepat ${imageCount} soal (dari total ${questionCount}) HARUS menyertakan field "imageSvg" berisi kode SVG lengkap yang relevan dengan topik soal. Buat SVG yang informatif dan sesuai konteks (geometri: bentuk bangun; tata surya: planet; siklus air: diagram; rantai makanan: organisme; peta: wilayah; pecahan: diagram kue/batang; hewan: ilustrasi sederhana).
-- SVG harus berukuran viewBox="0 0 400 250" dan berisi gambar yang jelas, berwarna, dan ramah anak.
-- Soal bergambar HARUS dimulai dengan kalimat: "Perhatikan gambar berikut ini!" dan pertanyaan harus mengacu langsung ke isi gambar.
-- Sisa ${nonImageCount} soal tidak perlu imageSvg.
+JENIS SOAL (variasikan secara adil antara ketiga jenis berikut):
+- pg: pilihan ganda biasa, 1 jawaban benar. Field WAJIB lengkap: type (isi "pg"), bloomLevel, question, options (array 4 string pilihan), correctAnswer (string jawaban yang benar), explanation.
+- pg_kompleks: PG dengan 2-3 jawaban benar. Field WAJIB lengkap: type (isi "pg_kompleks"), bloomLevel, question, options (array 4 string pilihan), correctAnswers (array 2-3 string jawaban benar), explanation.
+- benar_salah: 3 pernyataan Benar/Salah. Field WAJIB lengkap: type (isi "benar_salah"), bloomLevel, question, statements (array berisi tepat 3 objek {text, answer}), explanation.
 
-JENIS SOAL (variasikan acak antara ketiga jenis):
-- pg: pilihan ganda biasa, 1 jawaban benar, field: type,bloomLevel,question,options[4],correctAnswer,explanation[,imageSvg]
-- pg_kompleks: PG dengan 2-3 jawaban benar, field: type,bloomLevel,question,options[4],correctAnswers[],explanation[,imageSvg]
-- benar_salah: 3 pernyataan B/S, field: type,bloomLevel,question,statements[{text,answer}x3],explanation[,imageSvg]
+ATURAN PENTING LAINNYA:
+1. correctAnswer harus PERSIS sama dengan salah satu teks pilihan di "options".
+2. Setiap item dalam correctAnswers berupa array string yang nilainya harus PERSIS sama dengan salah satu pilihan di "options".
+3. "answer" di dalam array "statements" hanya boleh berisi string: "Benar" atau "Salah".
+4. JANGAN gunakan markdown atau pembungkus lain dalam output JSON, hanya JSON murni.
+5. Semua teks harus ramah anak SD.
+6. JANGAN menyertakan gambar (SVG) atau field "imageSvg" sama sekali.
+7. JANGAN membuat soal yang merujuk pada gambar (seperti "Perhatikan gambar berikut ini" atau "berdasarkan diagram di atas"), karena soal tidak memiliki gambar.
+8. KONSISTENSI JUMLAH SOAL: Kamu wajib menghasilkan TEPAT ${questionCount} soal kuis di dalam array "questions". Jangan kurang dari ${questionCount}, jangan lebih dari ${questionCount}. Array "questions" harus memiliki panjang persis ${questionCount}.`;
 
-ATURAN PENTING:
-1. correctAnswer harus PERSIS sama dengan salah satu teks di options
-2. correctAnswers berupa array string yang PERSIS sama dengan teks di options
-3. answer di statements hanya boleh: "Benar" atau "Salah"
-4. JANGAN gunakan markdown dalam output JSON, hanya JSON murni
-5. Semua teks harus sesuai usia SD, ramah anak
+    const userPrompt = `Buat tepat ${questionCount} soal kuis interaktif sesuai instruksi dan kembalikan dalam array 'questions' sebanyak tepat ${questionCount} item.`;
 
-Kembalikan JSON: {"questions":[...]} berisi tepat ${questionCount} soal.`;
-
-    const userPrompt = `Buat ${questionCount} soal interaktif untuk ${mapelValue} ${kelasSelect} tentang ${materiInput.trim() || "Materi Umum"}.`;
+    const responseSchema = {
+      type: "OBJECT",
+      properties: {
+        questions: {
+          type: "ARRAY",
+          description: `Daftar kuis interaktif berjumlah tepat ${questionCount} soal`,
+          minItems: questionCount,
+          maxItems: questionCount,
+          items: {
+            type: "OBJECT",
+            properties: {
+              type: { type: "STRING" },
+              bloomLevel: { type: "STRING" },
+              question: { type: "STRING" },
+              options: {
+                type: "ARRAY",
+                items: { type: "STRING" }
+              },
+              correctAnswer: { type: "STRING" },
+              correctAnswers: {
+                type: "ARRAY",
+                items: { type: "STRING" }
+              },
+              statements: {
+                type: "ARRAY",
+                items: {
+                  type: "OBJECT",
+                  properties: {
+                    text: { type: "STRING" },
+                    answer: { type: "STRING" }
+                  },
+                  required: ["text", "answer"]
+                }
+              },
+              explanation: { type: "STRING" }
+            },
+            required: ["type", "bloomLevel", "question", "explanation"]
+          }
+        }
+      },
+      required: ["questions"]
+    };
 
     setModalTitle("Menyiapkan Soal ✨");
     setModalLoadingText(`Sedang meramu ${questionCount} soal ${mapelValue} ${kelasSelect}...`);
@@ -330,7 +292,7 @@ Kembalikan JSON: {"questions":[...]} berisi tepat ${questionCount} soal.`;
     setModalOpen(true);
 
     try {
-      const resultText = await callGeminiSecure("generate", systemPrompt, userPrompt);
+      const resultText = await callGeminiSecure("generate", systemPrompt, userPrompt, responseSchema);
       const sanitized = sanitizeJson(resultText);
       const parsed = JSON.parse(sanitized);
 
