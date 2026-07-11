@@ -218,6 +218,10 @@ export default function BermainDenganSoal({ onBackToMainMenu, apiKeys }: PlayPag
     };
     const lengthRule = lengthInstructions[qLength] || lengthInstructions["Pendek (Sederhana dan ringkas, 10-20 kata)"];
 
+    const pgCount = Math.floor(questionCount / 3);
+    const pgKompleksCount = Math.floor(questionCount / 3);
+    const bsCount = questionCount - pgCount - pgKompleksCount;
+
     const systemPrompt = `Kamu adalah pembuat soal SD (Kurikulum Merdeka). Buat soal asesmen Bloom untuk:
 - Mapel: ${mapelValue} | Kelas: ${kelasSelect} | Topik: ${materiInput.trim() || "Materi Umum"}
 - Bloom: ${selectedBloom.join(", ")} | Kesulitan: ${diffDesc}
@@ -226,8 +230,12 @@ ${langNote}
 ATURAN PANJANG SOAL — WAJIB DIPATUHI:
 ${lengthRule}
 
-DISTRIBUSI JENIS SOAL (SANGAT PENTING):
-Kamu harus membuat variasi jenis soal secara seimbang antara "pg", "pg_kompleks", dan "benar_salah". JANGAN hanya membuat satu jenis saja (misal hanya membuat benar_salah). Bagilah secara rata dari total ${questionCount} soal yang diminta.
+DISTRIBUSI JENIS SOAL (WAJIB DIPATUHI):
+Kamu wajib menghasilkan tepat ${questionCount} soal dengan rincian tipe berikut:
+- Tipe "pg" (Pilihan Ganda Biasa, 1 jawaban benar): HARUS sebanyak tepat ${pgCount} soal.
+- Tipe "pg_kompleks" (Pilihan Ganda Kompleks, 2-3 jawaban benar): HARUS sebanyak tepat ${pgKompleksCount} soal.
+- Tipe "benar_salah" (Pernyataan Benar atau Salah, berisi 3 sub-pernyataan): HARUS sebanyak tepat ${bsCount} soal.
+Jangan hanya menghasilkan satu atau dua tipe saja. Buat persis sesuai pembagian di atas agar variasi soal adil dan seimbang!
 
 JENIS SOAL & STRUKTUR PENGISIAN FIELD:
 Setiap objek soal kuis di dalam array "questions" harus memiliki SEMUA field berikut tanpa terkecuali, demi kesesuaian skema JSON yang ketat:
@@ -258,7 +266,7 @@ ATURAN PENTING LAINNYA:
 7. JANGAN membuat soal yang merujuk pada gambar (seperti "Perhatikan gambar berikut ini" atau "berdasarkan diagram di atas"), karena soal tidak memiliki gambar.
 8. KONSISTENSI JUMLAH SOAL: Kamu wajib menghasilkan TEPAT ${questionCount} soal kuis di dalam array "questions". Jangan kurang dari ${questionCount}, jangan lebih dari ${questionCount}. Array "questions" harus memiliki panjang persis ${questionCount}.`;
 
-    const userPrompt = `Buat tepat ${questionCount} soal kuis interaktif sesuai instruksi dan kembalikan dalam array 'questions' sebanyak tepat ${questionCount} item.`;
+    const userPrompt = `Buat tepat ${questionCount} soal kuis interaktif sesuai rincian: ${pgCount} soal bertipe 'pg', ${pgKompleksCount} soal bertipe 'pg_kompleks', dan ${bsCount} soal bertipe 'benar_salah'. Kembalikan dalam array 'questions' sebanyak tepat ${questionCount} item.`;
 
     const responseSchema = {
       type: "OBJECT",
@@ -266,8 +274,6 @@ ATURAN PENTING LAINNYA:
         questions: {
           type: "ARRAY",
           description: `Daftar kuis interaktif berjumlah tepat ${questionCount} soal`,
-          minItems: questionCount,
-          maxItems: questionCount,
           items: {
             type: "OBJECT",
             properties: {
